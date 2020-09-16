@@ -11,8 +11,91 @@ class MoviesController < ApplicationController
   end
 
   def index
-    @sort_by = params[:sort_by]
-    @movies = Movie.order(@sort_by)
+    
+    # getting all movies
+    @movies = Movie.all
+    
+    # getting all ratings
+    @all_ratings = Movie.available_ratings_options
+    
+    # checking if ratings can be applied
+    if params[:ratings]
+      
+      # getting the ratings values from the params
+      @ratings = params[:ratings].keys
+      
+      # maintaining session ratings
+      session[:filtered_rating] = @ratings
+      
+      if session[:sort] and not params[:sort]
+        
+        # instatiating new hash
+        query_hash = Hash.new
+        
+        # maintaining session fitlered ratings
+        query_hash['ratings'] = params[:ratings]
+        
+        # if allowable sortable sort
+        if params[:sort]
+          query_hash['sort'] = params[:sort]
+        else
+          query_hash['sort'] = session[:sort]
+        end 
+        
+        redirect_to movies_path(query_hash)
+      end
+      
+    elsif session[:filtered_rating] # checking for sessions filtered ratings, if applicable
+      
+      # instatiating new hash
+      query_hash = Hash.new
+      
+      # maintaining session fitlered ratings
+      query_hash['ratings'] = Hash[session[:filtered_rating].collect { |item| [item, "1"] } ]
+
+      
+      # if allowable sortable sort
+      if params[:sort]
+        query_hash['sort'] = params[:sort]
+      else
+        query_hash['sort'] = session[:sort]
+      end      
+      
+      # storing empty to session's filtered ratings
+      session[:filtered_rating] = nil
+      
+      # maining the flash entries
+      flash.keep
+      
+      # redirecting to browser page that issued request
+      redirect_to movies_path(query_hash)
+    else 
+      # getting all ratings
+      @ratings = @all_ratings
+    end
+    
+    # getting movies with specified rating
+    @movies.where!(rating: @ratings)
+    
+    # when sorted highlight, change reordering in ascending order
+    case params[:sort]
+    when 'release_date'
+      @release_date_class = "hilite"
+      @movies.order!('release_date')
+      @release_date_path = "none"
+      @title_path = "title"
+      session[:sort] = 'release_date'
+    when 'title'
+      @title_class = "hilite"
+      @movies.order!('title')
+      @release_date_path = "release_date"
+      @title_path = "none"
+      session[:sort] = 'title'
+    when nil
+      @release_date_path = "release_date"
+      @title_path = "title"
+      session[:sort] = "none"
+    end
     
   end
 
